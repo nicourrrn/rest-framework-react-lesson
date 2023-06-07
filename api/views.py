@@ -1,45 +1,37 @@
 
-from django.views.decorators.csrf import csrf_exempt
-from django.http import HttpResponse, JsonResponse, HttpRequest
-from rest_framework.parsers import JSONParser
+from rest_framework import status
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+from rest_framework.request import Request
+
 from api.models import Project
 from api.serializers import ProjectSerializser
 
-@csrf_exempt
-def project_list(request: HttpRequest):
-    if request.method == 'GET':
+@api_view(["GET", "PUT"])
+def project_list(request: Request, format=None):
+    if request.method == "GET":
         projects = Project.objects.all()
-        serializer = ProjectSerializser(projects, many=True)
-        return JsonResponse(serializer.data, safe=False)
-    elif request.method == 'POST':
-        data = JSONParser().parse(request)
-        serializer = ProjectSerializser(data=data)
-        if serializer.is_valid():
-            serializer.save()
-            return JsonResponse(serializer.data, status=201)
-        return JsonResponse(serializer.errors, status=400)
-    elif request.method == 'PUT':
-        data = JSONParser().parse(request)
-        serializer = ProjectSerializser(data=data)
-        if serializer.is_valid():
-            serializer.save()
-            return JsonResponse(serializer.data)
-        return JsonResponse(serializer.errors, status=400)
-    return HttpResponse(status=404)
+        serialized = ProjectSerializser(projects, many=True)
+        return Response(serialized.data)
+    elif request.method == "PUT":
+        serialized = ProjectSerializser(data=request.data)
+        if serialized.is_valid():
+            serialized.save()
+            return Response(serialized.data, status=status.HTTP_201_CREATED)
+        return Response(serialized.errors, status=status.HTTP_400_BAD_REQUEST)
 
-@csrf_exempt 
-def project_detail(request: HttpRequest, pk: int):
-    try: 
+
+@api_view(["GET", "DELETE"])
+def project_detail(request: Request, pk: int, format=None):
+    try:
         proj = Project.objects.get(pk=pk)
     except Project.DoesNotExist:
-        return HttpResponse(status=404)
+        return Response(status=status.HTTP_404_NOT_FOUND)
 
-    if request.method == 'GET':
-        serializer = ProjectSerializser(proj)
-        return JsonResponse(serializer.data)
-
-    elif request.method == "DELETE":
-        proj.delete()
-        return HttpResponse(status=204)
-
-    return HttpResponse(status=404)
+    match request.method:
+        case "GET":
+            serialized = ProjectSerializser(proj)
+            return Response(serialized.data)
+        case "DELETE":
+            proj.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
