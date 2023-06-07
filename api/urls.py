@@ -1,19 +1,13 @@
 from django.urls import path, include
-from rest_framework.urlpatterns import format_suffix_patterns
+from rest_framework.routers import DefaultRouter 
 
 from . import views 
 
-project_detail = views.ProjectViewSet.as_view({'get': 'list', 'post': 'create'})
+router = DefaultRouter()
+router.register(r'projects', views.ProjectViewSet, basename='project')
+router.register(r'users', views.UserViewSet, basename='user')
 
 urlpatterns = [
-    path('', views.api_root),
-    path('old_api/projects', project_detail),
-    path('projects/', views.ProjectList.as_view(), name='project-list'),
-    path('projects/<int:pk>', views.ProjectDetail.as_view(), name='project-detail'),
-    path('users/', views.UserList.as_view(), name='user-list'),
-    path('users/<int:pk>', views.UserDetail.as_view(), name='user-detail'),
-
-    path('api-auth/', include('rest_framework.urls')),
+    path('', include(router.urls)),
 ]
 
-urlpatterns = format_suffix_patterns(urlpatterns)
