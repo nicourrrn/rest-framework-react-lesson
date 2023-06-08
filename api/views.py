@@ -1,18 +1,19 @@
-from django.contrib.auth.models import User
-from rest_framework import generics, permissions, viewsets
-from rest_framework.request import Request 
-from rest_framework.decorators import api_view
-from rest_framework.response import Response
-from rest_framework.reverse import reverse 
+from django.contrib.auth.models import User, AnonymousUser
+from django.core.serializers.json import Serializer
+from rest_framework.authtoken.models import Token
+from rest_framework.authtoken.views import ObtainAuthToken, Response 
+from rest_framework import  viewsets, request, authentication
+
 
 from api.models import Project
-from api.serializers import ProjectSerializser, UserSerrializer
+from api.serializers import ProjectSerializser, UserSerrializer, UserLoginSerializer
 from api.permissions import IsOwnerOrOreadOnly 
 
 class ProjectViewSet(viewsets.ModelViewSet):
     queryset = Project.objects.all()
     serializer_class = ProjectSerializser
-    permission_classes = [permissions.IsAuthenticatedOrReadOnly, IsOwnerOrOreadOnly]
+    authentication_classes = [authentication.TokenAuthentication]
+    permission_classes = [IsOwnerOrOreadOnly]
     
     def perform_create(self, serializer):
         serializer.save(owner=self.request.user)
@@ -23,9 +24,17 @@ class UserViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = User.objects.all()
     serializer_class = UserSerrializer
 
-@api_view(["GET"])
-def api_root(request: Request, format=None):
-    return Response({
-            'users': reverse('user-list', request=request, format=format),
-            'projects': reverse('project-list', request=request, format=format)
+
+class CustomAuthToken(ObtainAuthToken):
+
+    def post(self, request: request.Request, *args, **kwargs):
+        seriazliser = self.serializer_class(data=request.data, 
+                                           context={'request': request})
+        seriazliser.is_valid()
+        user = seriazliser.validated_data['user']
+        token, _ = Token.objects.get_or_create(user=user)
+        return Response({
+            'token': token.key,
+            'user_id': user.pk,
+            'username': user.username
         })
